@@ -1,0 +1,180 @@
+---
+title: "ANA 515 Assignment 3"
+author: "Mounika Gangishetty"
+output:
+  pdf_document: default
+  html_document:
+    theme:
+      bootswatch: superhero
+ 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include = FALSE}
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(openxlsx)
+```
+
+# Reading the GRAIN data from downloaded excel
+
+```{r, echo = TRUE}
+#  reading excel from local drive
+
+setwd("/Users/vamshinaidi/Documents/ANA-515/PracticumProject")
+excel_file  <- 'GRAINLandJan2012.xlsx'
+
+# reading data from sheet1
+
+sheet1 <- read_excel(excel_file,sheet="Sheet1")
+head(sheet1)
+
+# reading data from sheet2
+
+sheet2 <- read_excel(excel_file,sheet="Sheet2")
+head(sheet2)
+
+```
+
+# Using unique() function to find the distinct values in the "Landgrabbed" column, i.e distinct country names from sheet1.
+
+
+This data is about sales of vast amounts of agricultural land in less developed countries.
+The dataset has  information about `r length(unique(sheet1$Landgrabbed))` countries agricultural land sales data.
+The datset has  few null values for columns like 'Projected investment' ,'Year'  and invalid data for columns
+like Status of Deal' and 'Year'.
+We are going to remove these outliers and anamolies from the dataset.
+
+
+
+# Removing missing values, null, NA and invalid data from the datset
+
+```{r, echo = TRUE}
+
+# Removing the sales data in the sheets where projected investment amount is null,
+# Hectares is null and  invalid years
+
+filter_sheet1 <- sheet1 %>% 
+  filter(!is.na(`Projected investment`) & !is.null(Year) & !is.na(Year) & !is.na(`Hectares`))
+
+head(filter_sheet1)
+
+filter_sheet2 <- sheet2 %>% 
+  filter(!is.na(`Projected investment`) & !is.null(Year) & !is.na(Year) & !is.na(`Hectares`))
+
+
+head(filter_sheet2)
+
+
+```
+
+
+# Correcting the misspelled data for data consistency 
+
+```{r, echo = TRUE}
+#
+# Spell correction in column "Status of deal"
+#
+# Printing the values before changes
+#
+head(filter_sheet1$'Status of deal')
+
+head(filter_sheet2$'Status of deal')
+
+# 
+# we are using mutate function to handle misspelled data ,replacing "Don" with correct spell "Done"
+#  in the Status column and remaining we are not changing by passing the parameter TRUE in mutate function
+
+
+filter_sheet1 <- filter_sheet1 %>%
+  mutate(`Status of deal` = case_when(
+    `Status of deal` == "Don" ~ "Done",
+    TRUE ~ `Status of deal`  
+  ))
+
+
+filter_sheet2 <- filter_sheet2 %>%
+  mutate(`Status of deal` = case_when(
+    `Status of deal` == "Don" ~ "Done",
+    TRUE ~ `Status of deal` 
+  ))
+
+# Data after spell correction
+
+head(filter_sheet1$'Status of deal')
+
+
+head(filter_sheet2$'Status of deal')
+
+
+```
+
+# Combining the two data sheets into one
+
+```{r, echo = TRUE}
+
+# Combining the data from sheet1 and sheet2 into single file.
+
+combined_data <- rbind(filter_sheet1,filter_sheet2)
+
+head(combined_data)
+
+```
+
+# Sactter plot and histogram to understand  hectares of land sales in less devloped countries among many years.
+
+```{r, echo = TRUE}
+
+#
+# scatterplot determining  "Hectares of Land" vs. "Projected investment"
+# converting the values to numeric before proceeding to plot to avoid  "need finite 'xlim' values" error
+#
+
+combined_data$Hectares <- as.numeric(combined_data$Hectares)
+combined_data$`Projected investment` <- as.numeric(combined_data$`Projected investment`)
+
+plot(combined_data$Hectares, 
+     combined_data$`Projected investment`, 
+     main = "Scatterplot of Hectares vs. Projected Investment", 
+     xlab = "Hectares", 
+     ylab = "Projected Investment", 
+     pch = 19, 
+     col = "blue")
+
+#
+# A 2d histogram represents the hectares of land sales year wise
+#
+
+ggplot(combined_data, aes(x = Year, y = Hectares)) +
+  geom_bin2d(bins = 30) +
+  labs(
+    title = "2D Histogram",
+    x = "Projected Year",
+    y = "Land area in Hectares"
+  )
+
+
+```
+
+# Writing the cleaned data set named "filter_sheet1", "filter_sheet2" into an new  excel file
+
+```{r, echo = TRUE}
+wb <- createWorkbook()
+
+# We have filtered data sheets  "filter_sheet1", "filter_sheet2"
+
+# Adding each filtered sheet into the new Excel file
+addWorksheet(wb, sheetName = "Sheet1")
+writeData(wb, sheet = "Sheet1", filter_sheet1)
+
+addWorksheet(wb, sheetName = "Sheet2")
+writeData(wb, sheet = "Sheet2", filter_sheet2)
+
+# Save the Excel workbook to a file
+saveWorkbook(wb, file = "filtered_data_Mounika.xlsx")
+
+```
